@@ -11,6 +11,8 @@ const AdminDashboard = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCreatePost, setShowCreatePost] = useState(false);
+  const [editingPost, setEditingPost] = useState(null);
+  const [previewPost, setPreviewPost] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -25,7 +27,7 @@ const AdminDashboard = () => {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const data = await postService.getAllPosts();
+      const data = await postService.getUserPosts();
       setPosts(Array.isArray(data) ? data : []);
       setLoading(false);
     } catch (error) {
@@ -56,12 +58,37 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleUpdatePost = async (formData) => {
+    setIsSubmitting(true);
+    setError('');
+    
+    try {
+      const updatedPost = await postService.updatePost(editingPost._id, formData);
+      setPosts(prev => prev.map(post => 
+        post._id === updatedPost._id ? updatedPost : post
+      ));
+      setSuccessMessage('Post updated successfully!');
+      setShowCreatePost(false);
+      setEditingPost(null);
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update post. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleDeletePost = async (postId) => {
+    if (!postId) {
+      setError('Invalid post ID');
+      return;
+    }
+
     if (!window.confirm('Are you sure you want to delete this post?')) return;
 
     try {
       await postService.deletePost(postId);
-      setPosts(prev => prev.filter(post => post.id !== postId));
+      setPosts(prev => prev.filter(post => post._id !== postId));
       setSuccessMessage('Post deleted successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
@@ -71,6 +98,19 @@ const AdminDashboard = () => {
       }
       setTimeout(() => setError(''), 3000);
     }
+  };
+
+  const handleEditPost = (post) => {
+    setEditingPost(post);
+    setShowCreatePost(true);
+  };
+
+  const handlePreviewPost = (post) => {
+    setPreviewPost(post);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewPost(null);
   };
 
   if (loading) {
@@ -85,7 +125,7 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 scrollbar-hide">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -101,7 +141,10 @@ const AdminDashboard = () => {
               View Blog
             </button>
             <button
-              onClick={() => setShowCreatePost(true)}
+              onClick={() => {
+                setEditingPost(null);
+                setShowCreatePost(true);
+              }}
               className="flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
             >
               <FaPlus className="mr-2" />
@@ -123,16 +166,20 @@ const AdminDashboard = () => {
 
         {showCreatePost ? (
           <CreatePost 
-            onSubmit={handleCreatePost}
+            onSubmit={editingPost ? handleUpdatePost : handleCreatePost}
             isSubmitting={isSubmitting}
-            onCancel={() => setShowCreatePost(false)}
+            onCancel={() => {
+              setShowCreatePost(false);
+              setEditingPost(null);
+            }}
+            initialData={editingPost}
           />
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {posts.map((post) => (
                 <div
-                  key={post.id}
+                  key={post._id}
                   className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200"
                 >
                   <div className="p-6">
@@ -140,20 +187,13 @@ const AdminDashboard = () => {
                       <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">
                         {post.title}
                       </h3>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        post.status === 'published' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {post.status}
-                      </span>
                     </div>
                     <p className="mt-2 text-sm text-gray-600 line-clamp-3">
                       {post.content}
                     </p>
                     <div className="mt-4 flex items-center text-sm text-gray-500">
                       <FaCalendar className="mr-2" />
-                      {new Date(post.date).toLocaleDateString('en-US', {
+                      {new Date(post.createdAt).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'
@@ -161,13 +201,19 @@ const AdminDashboard = () => {
                     </div>
                     <div className="mt-4 flex justify-end space-x-3">
                       <button
-                        onClick={() => navigate(`/edit-post/${post.id}`)}
+                        onClick={() => handlePreviewPost(post)}
+                        className="text-blue-600 hover:text-blue-800 transition-colors p-2"
+                      >
+                        <FaEye className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => handleEditPost(post)}
                         className="text-indigo-600 hover:text-indigo-800 transition-colors p-2"
                       >
                         <FaEdit className="h-5 w-5" />
                       </button>
                       <button
-                        onClick={() => handleDeletePost(post.id)}
+                        onClick={() => handleDeletePost(post._id)}
                         className="text-red-600 hover:text-red-800 transition-colors p-2"
                       >
                         <FaTrash className="h-5 w-5" />
@@ -185,6 +231,49 @@ const AdminDashboard = () => {
                 </p>
               </div>
             )}
+          </>
+        )}
+
+        {/* Post Preview Modal */}
+        {previewPost && (
+          <>
+            {/* Backdrop with blur effect */}
+            <div 
+              className="fixed inset-0 backdrop-blur-sm bg-white/30 transition-opacity"
+              onClick={handleClosePreview}
+            />
+            
+            {/* Modal Content */}
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-20 scrollbar-hide">
+              <div 
+                className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto scrollbar-hide"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="absolute top-4 right-4">
+                  <button
+                    onClick={handleClosePreview}
+                    className="text-gray-400 hover:text-gray-500 transition-colors"
+                  >
+                    <FaTimes className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <div className="p-6">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">{previewPost.title}</h2>
+                  <div className="prose max-w-none">
+                    <p className="text-gray-700 whitespace-pre-line">{previewPost.content}</p>
+                  </div>
+                  <div className="mt-6 flex items-center text-sm text-gray-500">
+                    <FaCalendar className="mr-2" />
+                    {new Date(previewPost.createdAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
           </>
         )}
       </div>

@@ -1,9 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaTimes, FaSpinner } from 'react-icons/fa';
 
-const CreatePost = ({ onSubmit, isSubmitting, onCancel }) => {
-  const [formData, setFormData] = useState({ title: '', content: '' });
+const CreatePost = ({ onSubmit, isSubmitting, onCancel, initialData }) => {
+  const [formData, setFormData] = useState({
+    title: '',
+    content: ''
+  });
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        title: initialData.title || '',
+        content: initialData.content || ''
+      });
+    }
+  }, [initialData]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -36,7 +56,9 @@ const CreatePost = ({ onSubmit, isSubmitting, onCancel }) => {
   return (
     <div className="bg-white rounded-xl shadow-sm">
       <div className="flex justify-between items-center p-6 border-b border-gray-200">
-        <h2 className="text-xl font-semibold text-gray-900">Create New Post</h2>
+        <h2 className="text-xl font-semibold text-gray-900">
+          {initialData ? 'Edit Post' : 'Create New Post'}
+        </h2>
         <button
           onClick={onCancel}
           className="text-gray-400 hover:text-gray-500"
@@ -53,13 +75,11 @@ const CreatePost = ({ onSubmit, isSubmitting, onCancel }) => {
             </label>
             <input
               type="text"
+              id="title"
+              name="title"
+              required
               value={formData.title}
-              onChange={(e) => {
-                setFormData({ ...formData, title: e.target.value });
-                if (errors.title) {
-                  setErrors(prev => ({ ...prev, title: '' }));
-                }
-              }}
+              onChange={handleChange}
               className={`w-full px-4 py-2 rounded-lg border ${
                 errors.title ? 'border-red-500' : 'border-gray-200'
               } focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-colors`}
@@ -75,14 +95,12 @@ const CreatePost = ({ onSubmit, isSubmitting, onCancel }) => {
               Content
             </label>
             <textarea
-              value={formData.content}
-              onChange={(e) => {
-                setFormData({ ...formData, content: e.target.value });
-                if (errors.content) {
-                  setErrors(prev => ({ ...prev, content: '' }));
-                }
-              }}
+              id="content"
+              name="content"
+              required
               rows={12}
+              value={formData.content}
+              onChange={handleChange}
               className={`w-full px-4 py-2 rounded-lg border ${
                 errors.content ? 'border-red-500' : 'border-gray-200'
               } focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-colors`}
@@ -113,12 +131,12 @@ const CreatePost = ({ onSubmit, isSubmitting, onCancel }) => {
               className="flex items-center px-6 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
             >
               {isSubmitting ? (
-                <>
-                  <FaSpinner className="animate-spin -ml-1 mr-2 h-4 w-4" />
-                  Creating...
-                </>
+                <span className="flex items-center">
+                  <FaSpinner className="animate-spin mr-2" />
+                  {initialData ? 'Updating...' : 'Creating...'}
+                </span>
               ) : (
-                'Create Post'
+                initialData ? 'Update Post' : 'Create Post'
               )}
             </button>
           </div>

@@ -112,6 +112,16 @@ export const postService = {
     }
   },
 
+  getUserPosts: async (page = 1, limit = 10) => {
+    try {
+      const response = await api.get(`/api/posts/user?page=${page}&limit=${limit}`);
+      return response.data.posts || [];
+    } catch (error) {
+      console.error('Error fetching user posts:', error);
+      throw error;
+    }
+  },
+
   getPostById: async (postId) => {
     try {
       const response = await api.get(`/api/posts/${postId}`);
