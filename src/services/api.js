@@ -18,6 +18,9 @@ api.interceptors.request.use(
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete api.defaults.headers.common['Authorization'];
     }
     return config;
   },
@@ -35,6 +38,12 @@ api.interceptors.response.use(
   },
   (error) => {
     console.error('Response error:', error.response || error);
+    if (error.response?.status === 401) {
+      // Clear auth data and redirect to login
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
     return Promise.reject(error);
   }
 );
@@ -46,6 +55,7 @@ export const authService = {
       const response = await api.post('/api/signup', userData);
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
       }
       return response.data;
     } catch (error) {
@@ -55,47 +65,111 @@ export const authService = {
   },
 
   login: async (credentials) => {
-    const response = await api.post('/api/login', credentials);
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
+    try {
+      const response = await api.post('/api/login', credentials);
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        // Set the token in the axios instance for subsequent requests
+        api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Login error:', error.response || error);
+      throw error;
     }
-    return response.data;
   },
 
   logout: () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
   },
 
   isAuthenticated: () => {
     return !!localStorage.getItem('token');
+  },
+
+  getCurrentUser: () => {
+    const userStr = localStorage.getItem('user');
+    return userStr ? JSON.parse(userStr) : null;
+  },
+
+  isAdmin: () => {
+    const user = authService.getCurrentUser();
+    return user?.role === 'admin';
   }
 };
 
 // Post Services
 export const postService = {
-  getAllPosts: async () => {
-    const response = await api.get('/api/posts');
-    return response.data;
+  getAllPosts: async (page = 1, limit = 10) => {
+    try {
+      const response = await api.get(`/api/posts?page=${page}&limit=${limit}`);
+      return response.data.posts || [];
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      throw error;
+    }
   },
 
   getPostById: async (postId) => {
-    const response = await api.get(`/api/posts/${postId}`);
-    return response.data;
+    try {
+      const response = await api.get(`/api/posts/${postId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching post:', error);
+      throw error;
+    }
   },
 
   createPost: async (postData) => {
-    const response = await api.post('/api/posts', postData);
-    return response.data;
+    try {
+      const response = await api.post('/api/posts', postData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating post:', error);
+      throw error;
+    }
   },
 
   updatePost: async (postId, postData) => {
-    const response = await api.put(`/api/posts/${postId}`, postData);
-    return response.data;
+    try {
+      const response = await api.put(`/api/posts/${postId}`, postData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating post:', error);
+      throw error;
+    }
   },
 
   deletePost: async (postId) => {
-    const response = await api.delete(`/api/posts/${postId}`);
-    return response.data;
+    try {
+      const response = await api.delete(`/api/posts/${postId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      throw error;
+    }
+  },
+
+  likePost: async (postId) => {
+    try {
+      const response = await api.post(`/api/posts/${postId}/like`);
+      return response.data;
+    } catch (error) {
+      console.error('Error liking post:', error);
+      throw error;
+    }
+  },
+
+  addComment: async (postId, commentData) => {
+    try {
+      const response = await api.post(`/api/posts/${postId}/comments`, commentData);
+      return response.data;
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      throw error;
+    }
   }
 };
 

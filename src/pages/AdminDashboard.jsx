@@ -24,15 +24,15 @@ const AdminDashboard = () => {
 
   const fetchPosts = async () => {
     try {
-      const fetchedPosts = await postService.getAllPosts();
-      setPosts(fetchedPosts);
+      setLoading(true);
+      const data = await postService.getAllPosts();
+      setPosts(Array.isArray(data) ? data : []);
       setLoading(false);
-    } catch (err) {
-      setError('Failed to load posts. Please try again later.');
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      setError('Failed to fetch posts. Please try again later.');
+      setPosts([]);
       setLoading(false);
-      if (err.response?.status === 401) {
-        navigate('/login');
-      }
     }
   };
 
