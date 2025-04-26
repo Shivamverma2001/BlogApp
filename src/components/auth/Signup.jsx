@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaUser, FaEnvelope, FaLock } from 'react-icons/fa';
+import { authService } from '../../services/api';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -33,13 +34,14 @@ const Signup = () => {
     }
 
     try {
-      // TODO: Implement signup logic with backend
-      console.log('Signup form submitted:', formData);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      // Handle successful signup
+      // Remove confirmPassword before sending to API
+      const { confirmPassword, ...signupData } = formData;
+      await authService.signup(signupData);
+      
+      // If signup is successful, navigate to the home page
+      navigate('/');
     } catch (err) {
-      setError('An error occurred during signup. Please try again.');
+      setError(err.response?.data?.message || 'An error occurred during signup. Please try again.');
     } finally {
       setLoading(false);
     }

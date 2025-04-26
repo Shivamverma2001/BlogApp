@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaPlus, FaTrash, FaEdit, FaEye, FaSpinner, FaTimes, FaCalendar } from 'react-icons/fa';
 import CreatePost from '../components/CreatePost';
-
+import { postService, authService } from '../services/api';
 
 const AdminDashboard = () => {
   const [posts, setPosts] = useState([]);
@@ -14,32 +14,25 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Check authentication
+    if (!authService.isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
     fetchPosts();
-  }, []);
+  }, [navigate]);
 
   const fetchPosts = async () => {
     try {
-      // TODO: Fetch posts from backend
-      setPosts([
-        {
-          id: 1,
-          title: 'Sample Post 1',
-          content: 'This is a sample blog post content...',
-          date: '2024-04-26',
-          status: 'published'
-        },
-        {
-          id: 2,
-          title: 'Sample Post 2',
-          content: 'Another sample blog post content...',
-          date: '2024-04-25',
-          status: 'draft'
-        }
-      ]);
+      const fetchedPosts = await postService.getAllPosts();
+      setPosts(fetchedPosts);
       setLoading(false);
-    } catch (error) {
+    } catch (err) {
       setError('Failed to load posts. Please try again later.');
       setLoading(false);
+      if (err.response?.status === 401) {
+        navigate('/login');
+      }
     }
   };
 
@@ -48,21 +41,16 @@ const AdminDashboard = () => {
     setError('');
     
     try {
-      // TODO: Implement create post API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setPosts(prev => [{
-        id: Date.now(),
-        ...formData,
-        date: new Date().toISOString(),
-        status: 'published'
-      }, ...prev]);
-      
+      const newPost = await postService.createPost(formData);
+      setPosts(prev => [newPost, ...prev]);
       setSuccessMessage('Post created successfully!');
       setShowCreatePost(false);
       setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (error) {
-      setError('Failed to create post. Please try again.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to create post. Please try again.');
+      if (err.response?.status === 401) {
+        navigate('/login');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -72,12 +60,15 @@ const AdminDashboard = () => {
     if (!window.confirm('Are you sure you want to delete this post?')) return;
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await postService.deletePost(postId);
       setPosts(prev => prev.filter(post => post.id !== postId));
       setSuccessMessage('Post deleted successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (error) {
-      setError('Failed to delete post. Please try again.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete post. Please try again.');
+      if (err.response?.status === 401) {
+        navigate('/login');
+      }
       setTimeout(() => setError(''), 3000);
     }
   };

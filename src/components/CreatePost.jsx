@@ -3,11 +3,34 @@ import { FaTimes, FaSpinner } from 'react-icons/fa';
 
 const CreatePost = ({ onSubmit, isSubmitting, onCancel }) => {
   const [formData, setFormData] = useState({ title: '', content: '' });
+  const [errors, setErrors] = useState({});
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.title.trim()) {
+      newErrors.title = 'Title is required';
+    }
+    if (!formData.content.trim()) {
+      newErrors.content = 'Content is required';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await onSubmit(formData);
-    setFormData({ title: '', content: '' });
+    if (!validateForm()) return;
+    
+    try {
+      await onSubmit(formData);
+      setFormData({ title: '', content: '' });
+      setErrors({});
+    } catch (err) {
+      setErrors(prev => ({
+        ...prev,
+        submit: err.message || 'Failed to create post'
+      }));
+    }
   };
 
   return (
@@ -31,11 +54,20 @@ const CreatePost = ({ onSubmit, isSubmitting, onCancel }) => {
             <input
               type="text"
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-colors"
+              onChange={(e) => {
+                setFormData({ ...formData, title: e.target.value });
+                if (errors.title) {
+                  setErrors(prev => ({ ...prev, title: '' }));
+                }
+              }}
+              className={`w-full px-4 py-2 rounded-lg border ${
+                errors.title ? 'border-red-500' : 'border-gray-200'
+              } focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-colors`}
               placeholder="Enter post title"
-              required
             />
+            {errors.title && (
+              <p className="mt-1 text-sm text-red-600">{errors.title}</p>
+            )}
           </div>
 
           <div>
@@ -44,13 +76,28 @@ const CreatePost = ({ onSubmit, isSubmitting, onCancel }) => {
             </label>
             <textarea
               value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, content: e.target.value });
+                if (errors.content) {
+                  setErrors(prev => ({ ...prev, content: '' }));
+                }
+              }}
               rows={12}
-              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-colors"
+              className={`w-full px-4 py-2 rounded-lg border ${
+                errors.content ? 'border-red-500' : 'border-gray-200'
+              } focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-colors`}
               placeholder="Write your post content here..."
-              required
             />
+            {errors.content && (
+              <p className="mt-1 text-sm text-red-600">{errors.content}</p>
+            )}
           </div>
+
+          {errors.submit && (
+            <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded-md">
+              <p className="text-red-700">{errors.submit}</p>
+            </div>
+          )}
 
           <div className="flex justify-end space-x-3">
             <button
